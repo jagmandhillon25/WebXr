@@ -2,6 +2,8 @@
 const canvas = document.getElementById("renderCanvas");
 const engine = new BABYLON.Engine(canvas, true);
 const createScene = async function() {
+    let isLanding = false;
+    let isTakingOff = false;
 
     const scene = new BABYLON.Scene(engine);
     scene.clearColor = new BABYLON.Color4(0.6, 0.8, 1, 1);
@@ -18,31 +20,62 @@ const createScene = async function() {
     ground.material = groundMaterial;
 
     
+;
 
-    
-    // adding Plane to the scene
-    BABYLON.SceneLoader.ImportMesh(
-        null, "./media/","Wooden Plane.gltf", scene,
-        function (meshes) {
-            console.log("Meshes loaded:", meshes);
-            let woodenPlane = meshes[0];
+// Realistic runway
+const runway = BABYLON.MeshBuilder.CreateGround("runway", {
+    width: 4,
+    height: 50
+}, scene);
 
-            woodenPlane.scaling = new BABYLON.Vector3(12, 12, 12);
-            woodenPlane.position = new BABYLON.Vector3(1, 16, 1);
-            woodenPlane.rotation = new BABYLON.Vector3(Math.PI/8, 0, 0);
-    
-            // giving the plane animation
-            let angle = 0;
-            const radius = 3;
-    
-            scene.onBeforeRenderObservable.add(() => {
-                angle += 0.02;  // Adjust speed of rotation
-                woodenPlane.position.x = Math.cos(angle) * radius;
-                woodenPlane.position.z = Math.sin(angle) * radius;
-                woodenPlane.rotation.y = -angle;
-            });
-        },
+const runwayMat = new BABYLON.StandardMaterial("runwayMat", scene);
+runwayMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.1); // black/dark gray
+runway.material = runwayMat;
+runway.position.z = -10;
+runway.position.y = 0.01;
 
+
+BABYLON.SceneLoader.ImportMesh(null, "./media/", "Wooden Plane.gltf", scene, function (meshes) {
+    let plane = meshes[0];
+
+    // Nice size
+    plane.scaling = new BABYLON.Vector3(8, 8, 8);
+
+    // Start above and far away (Z-50)
+    plane.position = new BABYLON.Vector3(0, 7.5, -50);
+
+    // Tilt slightly downward
+    plane.rotation = new BABYLON.Vector3(BABYLON.Tools.ToRadians(0), BABYLON.Tools.ToRadians(-90), 0);
+
+    // Animate forward and downward
+    scene.onBeforeRenderObservable.add(() => {
+        if (isLanding  & plane.position.z < -2) {  // stop before the house!
+            plane.position.z += 0.2;
+            if (plane.position.y > 0.5) {
+                plane.position.y -= 0.03;
+            }
+        }
+        if (isTakingOff && plane.position.z > -80) {
+            plane.position.z -= -0.2;
+            if (plane.position.y < -15) {
+                plane.position.y += -0.05;
+            }
+        } else {
+            // level out once on ground
+            plane.rotation.y = BABYLON.Tools.ToRadians(-90);
+            plane.rotation.x = BABYLON.Tools.ToRadians(0);
+            plane.rotation.z = BABYLON.Tools.ToRadians(0);
+        }
+        document.getElementById("startLanding").addEventListener("click", () => {
+            isLanding = true;
+            isTakingOff = false;
+        });
+        document.getElementById("startTakeoff").addEventListener("click", () => {
+            isLanding = false;
+            isTakingOff = true;
+        });
+    });
+});
             // House added to the scene
         BABYLON.SceneLoader.ImportMesh(
             null, "./media/","house_and_clothesline.glb", scene,
@@ -51,11 +84,12 @@ const createScene = async function() {
                 let woodenPlane = meshes[0];
     
                 woodenPlane.scaling = new BABYLON.Vector3(1, 1, 1);
-                woodenPlane.position = new BABYLON.Vector3(3, 0, 3);
+                woodenPlane.position = new BABYLON.Vector3(8, 0, 3);
+
             })
             
 // Added the walls to the surroundings for future use
-    )
+    
     const wHeight = 1.5;
     const wThickness = 0.5;
     const wLength = 27;
